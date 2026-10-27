@@ -1,0 +1,52 @@
+﻿#!/usr/bin/env bash
+# =============================================================================
+#  kick — Surgical single-client eviction shorthand
+#  Usage:  ./kick <CLIENT_MAC> [options]
+#  Examples:
+#    ./kick AA:BB:CC:DD:EE:FF --ssid HomeNetwork
+#    ./kick AA:BB:CC:DD:EE:FF --bssid 00:11:22:33:44:55 --channel 6
+#    ./kick AA:BB:CC:DD:EE:FF --ssid HomeNetwork --continuous
+# =============================================================================
+
+set -euo pipefail
+
+RED='\033[91m'; YLW='\033[93m'; GRN='\033[92m'
+CYN='\033[96m'; MAG='\033[95m'; RST='\033[0m'; BLD='\033[1m'
+
+banner() {
+  echo -e "${MAG}${BLD}"
+  echo "  ╔═══════════════════════════════════╗"
+  echo "  ║   THE EVICTOR  —  ./kick [MAC]    ║"
+  echo "  ╚═══════════════════════════════════╝"
+  echo -e "${RST}"
+}
+
+usage() {
+  echo -e "${BLD}Usage:${RST}  ./kick <CLIENT_MAC> [OPTIONS]\n"
+  echo -e "  ${BLD}--ssid${RST}    <NAME>   Target SSID (auto-resolves BSSID)"
+  echo -e "  ${BLD}--bssid${RST}   <MAC>    Target AP MAC (use with --channel)"
+  echo -e "  ${BLD}--channel${RST} <N>      AP channel"
+  echo -e "  ${BLD}--iface${RST}   <DEV>    Wireless interface (default: wlan0)"
+  echo -e "  ${BLD}--count${RST}   <N>      Deauth frames to send (default: 64)"
+  echo -e "  ${BLD}--continuous${RST}       Keep kicking until Ctrl+C"
+  echo
+  exit 1
+}
+
+# ── Require at least one argument ─────────────────────────────────────────────
+[[ $# -lt 1 ]] && banner && usage
+
+CLIENT_MAC="$1"; shift
+
+# ── Validate MAC format ───────────────────────────────────────────────────────
+if ! echo "$CLIENT_MAC" | grep -qiE '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'; then
+  echo -e "${RED}[-]${RST} Invalid MAC address: '$CLIENT_MAC'"
+  usage
+fi
+
+# ── Pass remaining args straight to evictor.py ───────────────────────────────
+banner
+echo -e "${CYN}[*]${RST} Surgical kick → ${BLD}${CLIENT_MAC}${RST}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec sudo python3 "${SCRIPT_DIR}/evictor.py" "$@" kick "${CLIENT_MAC}"
